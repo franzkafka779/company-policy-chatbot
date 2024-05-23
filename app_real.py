@@ -40,12 +40,17 @@ def load_llm_model():
     model = pipeline("text-generation", model="skt/kogpt2-base-v2", tokenizer="skt/kogpt2-base-v2")
     return model
 
+# 텍스트 길이 제한 함수
+def truncate_text(text, max_length):
+    return text[:max_length]
+
 # LLM을 사용한 답변 생성 함수
 def generate_answer(llm_model, query, context, max_length=100):
     input_text = f"질문: {query}\n\n맥락: {context}\n\n답변:"
+    input_text = truncate_text(input_text, 512)  # 입력 텍스트를 512자로 제한
     answer = llm_model(input_text, max_new_tokens=max_length, do_sample=True, top_p=0.95, top_k=50)
     generated_text = answer[0]['generated_text']
-    return generated_text.split("답변:")[1].strip()
+    return generated_text.split("답변:")[1].strip() if "답변:" in generated_text else generated_text
 
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
@@ -66,6 +71,7 @@ if os.path.exists(pdf_path):
         
         # 검색 결과를 하나의 컨텍스트로 합치기
         context = "\n".join([result.page_content for result in search_results])
+        context = truncate_text(context, 512)  # 맥락 텍스트를 512자로 제한
         
         # LLM을 사용하여 답변 생성
         answer = generate_answer(llm_model, user_input, context, max_length=100)
