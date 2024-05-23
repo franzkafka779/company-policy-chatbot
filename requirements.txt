@@ -7,4 +7,5 @@ googletrans==4.0.0-rc1
 streamlit
 sentence-transformers
 langchain
+langchain_community
 tiktoken
