@@ -2,6 +2,8 @@ import pdfplumber
 from sentence_transformers import SentenceTransformer
 import faiss
 import pickle
+import gdown
+import os
 
 def extract_text_and_tables(pdf_path):
     text = ""
@@ -19,16 +21,21 @@ def create_faiss_index(texts):
     index.add(embeddings)
     return index, model, embeddings
 
+# 모델 파일이 존재하지 않는 경우 Google Drive에서 다운로드
+if not os.path.exists('data/model.pkl'):
+    url = 'https://drive.google.com/file/d/1_etZpxgAXnaB6gHQUCY5mfryUN3wV7As/view?usp=drive_link'  # Google Drive 파일 ID로 대체
+    gdown.download(url, 'data/model.pkl', quiet=False)
+
 pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
 text, tables = extract_text_and_tables(pdf_path)
 texts = text.split('\n')
 
 index, model, embeddings = create_faiss_index(texts)
 
-# Save the index, model, and texts for later use
+# Save the index and texts for later use
 with open('data/index.pkl', 'wb') as f:
     pickle.dump(index, f)
-with open('data/model.pkl', 'wb') as f:
-    pickle.dump(model, f)
 with open('data/texts.pkl', 'wb') as f:
     pickle.dump(texts, f)
+
+# model.pkl은 Google Drive에 저장된 모델을 사용
