@@ -3,11 +3,10 @@ import pdfplumber
 import faiss
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from googletrans import Translator
 import os
-import pickle
 
 # 텍스트 추출 함수
 def extract_text_from_pdf(pdf_path):
@@ -37,16 +36,6 @@ def create_vectorstore(chunks):
     vectorstore = FAISS.from_texts(chunks, embeddings)
     return vectorstore
 
-# 벡터 DB 저장 함수
-def save_vectorstore(vectorstore, filepath):
-    with open(filepath, 'wb') as f:
-        pickle.dump(vectorstore, f)
-
-# 벡터 DB 로드 함수
-def load_vectorstore(filepath):
-    with open(filepath, 'rb') as f:
-        return pickle.load(f)
-
 # 번역 함수 (Google Translate API 사용)
 translator = Translator()
 
@@ -57,16 +46,11 @@ def translate(text, src='ko', dest='en'):
 st.title("회사 내규 챗봇")
 
 pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
-vectorstore_path = 'data/vectorstore.pkl'
 
 if os.path.exists(pdf_path):
-    if os.path.exists(vectorstore_path):
-        vectorstore = load_vectorstore(vectorstore_path)
-    else:
-        pdf_text = extract_text_from_pdf(pdf_path)
-        text_chunks = split_text(pdf_text)
-        vectorstore = create_vectorstore(text_chunks)
-        save_vectorstore(vectorstore, vectorstore_path)
+    pdf_text = extract_text_from_pdf(pdf_path)
+    text_chunks = split_text(pdf_text)
+    vectorstore = create_vectorstore(text_chunks)
 
     user_input = st.text_input("질문을 입력하세요:")
 
