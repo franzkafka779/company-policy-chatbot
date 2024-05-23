@@ -44,7 +44,7 @@ def load_llm_model():
 # LLM을 사용한 답변 생성 함수
 def generate_answer(llm_model, query, context):
     input_text = f"질문: {query}\n\n맥락: {context}\n\n답변:"
-    answer = llm_model(input_text, max_length=200, do_sample=True, top_p=0.95, top_k=50)
+    answer = llm_model(input_text, max_new_tokens=200, do_sample=True, top_p=0.95, top_k=50)
     return answer[0]['generated_text']
 
 # Streamlit UI 구현
