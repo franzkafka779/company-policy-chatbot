@@ -1,31 +1,23 @@
 import streamlit as st
-import pdfplumber
+import pickle
 from sentence_transformers import SentenceTransformer
 import faiss
 from googletrans import Translator
+import gdown
+import os
 
-# PDF에서 텍스트와 표 추출
-def extract_text_and_tables(pdf_path):
-    text = ""
-    tables = []
-    with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            text += page.extract_text()
-            tables.extend(page.extract_tables())
-    return text, tables
+# 모델 파일이 존재하지 않는 경우 Google Drive에서 다운로드
+if not os.path.exists('data/model.pkl'):
+    url = 'https://drive.google.com/file/d/1_etZpxgAXnaB6gHQUCY5mfryUN3wV7As/view?usp=drive_link'  # Google Drive 파일 ID로 대체
+    gdown.download(url, 'data/model.pkl', quiet=False)
 
-# 텍스트 임베딩 생성 및 FAISS 인덱스 생성
-def create_faiss_index(texts):
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-    embeddings = model.encode(texts)
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(embeddings)
-    return index, model
-
-def search_faiss_index(query, index, model, texts, top_k=5):
-    query_embedding = model.encode([query])
-    distances, indices = index.search(query_embedding, top_k)
-    return [texts[idx] for idx in indices[0]]
+# Load precomputed FAISS index, model, and texts
+with open('data/index.pkl', 'rb') as f:
+    index = pickle.load(f)
+with open('data/model.pkl', 'rb') as f:
+    model = pickle.load(f)
+with open('data/texts.pkl', 'rb') as f:
+    texts = pickle.load(f)
 
 # 번역 함수 (Google Translate API 사용)
 translator = Translator()
@@ -33,16 +25,13 @@ translator = Translator()
 def translate(text, src='ko', dest='en'):
     return translator.translate(text, src=src, dest=dest).text
 
+def search_faiss_index(query, index, model, texts, top_k=5):
+    query_embedding = model.encode([query])
+    distances, indices = index.search(query_embedding, top_k)
+    return [texts[idx] for idx in indices[0]]
+
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
-
-# PDF 파일에서 텍스트와 테이블 추출
-pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
-text, tables = extract_text_and_tables(pdf_path)
-
-# 텍스트 임베딩 생성 및 FAISS 인덱스 생성
-texts = text.split('\n')  # 간단히 줄 단위로 나눔
-index, model = create_faiss_index(texts)
 
 user_input = st.text_input("질문을 입력하세요:")
 
