@@ -37,7 +37,7 @@ def translate(text, src='ko', dest='en'):
 st.title("회사 내규 챗봇")
 
 # PDF 파일에서 텍스트와 테이블 추출
-pdf_path = 'data/company_policy.pdf'
+pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
 text, tables = extract_text_and_tables(pdf_path)
 
 # 텍스트 임베딩 생성 및 FAISS 인덱스 생성
