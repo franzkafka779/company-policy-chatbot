@@ -45,13 +45,9 @@ def translate(text, src='ko', dest='en'):
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
 
-uploaded_file = st.file_uploader("PDF 파일을 업로드하세요", type="pdf")
+pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
 
-if uploaded_file:
-    with open(os.path.join("data", uploaded_file.name), "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    pdf_path = os.path.join("data", uploaded_file.name)
+if os.path.exists(pdf_path):
     pdf_text = extract_text_from_pdf(pdf_path)
     text_chunks = split_text(pdf_text)
     vectorstore = create_vectorstore(text_chunks)
@@ -71,3 +67,5 @@ if uploaded_file:
         # 결과 출력
         for result in translated_results:
             st.write(result)
+else:
+    st.error("PDF 파일을 data 폴더에 업로드해주세요.")
