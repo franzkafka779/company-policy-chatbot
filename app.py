@@ -8,7 +8,7 @@ import os
 
 # 모델 파일이 존재하지 않는 경우 Google Drive에서 다운로드
 if not os.path.exists('data/model.pkl'):
-    url = 'https://drive.google.com/file/d/1_etZpxgAXnaB6gHQUCY5mfryUN3wV7As/view?usp=drive_link'  # Google Drive 파일 ID로 대체
+    url = 'https://drive.google.com/uc?id=YOUR_FILE_ID'  # Google Drive 파일 ID로 대체
     gdown.download(url, 'data/model.pkl', quiet=False)
 
 # Load precomputed FAISS index, model, and texts
