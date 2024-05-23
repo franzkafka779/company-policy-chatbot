@@ -56,7 +56,7 @@ def translate(text, src='ko', dest='en'):
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
 
-pdf_path = 'data/company_policy.pdf'
+pdf_path = 'data/포커스미디어_상품정책_5.4.2.pdf'
 vectorstore_path = 'data/vectorstore.pkl'
 
 if os.path.exists(pdf_path):
