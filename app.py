@@ -1,0 +1,87 @@
+import streamlit as st
+import pdfplumber
+import faiss
+from sentence_transformers import SentenceTransformer
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+from googletrans import Translator
+import os
+import pickle
+
+# 텍스트 추출 함수
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text()
+    return text
+
+# 텍스트 분할 함수
+def split_text(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=900,
+        chunk_overlap=100,
+        length_function=len
+    )
+    chunks = text_splitter.split_text(text)
+    return chunks
+
+# 벡터 DB 생성 함수
+def create_vectorstore(chunks):
+    embeddings = HuggingFaceEmbeddings(
+        model_name="jhgan/ko-sroberta-multitask",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
+    )
+    vectorstore = FAISS.from_texts(chunks, embeddings)
+    return vectorstore
+
+# 벡터 DB 저장 함수
+def save_vectorstore(vectorstore, filepath):
+    with open(filepath, 'wb') as f:
+        pickle.dump(vectorstore, f)
+
+# 벡터 DB 로드 함수
+def load_vectorstore(filepath):
+    with open(filepath, 'rb') as f:
+        return pickle.load(f)
+
+# 번역 함수 (Google Translate API 사용)
+translator = Translator()
+
+def translate(text, src='ko', dest='en'):
+    return translator.translate(text, src=src, dest=dest).text
+
+# Streamlit UI 구현
+st.title("회사 내규 챗봇")
+
+pdf_path = 'data/company_policy.pdf'
+vectorstore_path = 'data/vectorstore.pkl'
+
+if os.path.exists(pdf_path):
+    if os.path.exists(vectorstore_path):
+        vectorstore = load_vectorstore(vectorstore_path)
+    else:
+        pdf_text = extract_text_from_pdf(pdf_path)
+        text_chunks = split_text(pdf_text)
+        vectorstore = create_vectorstore(text_chunks)
+        save_vectorstore(vectorstore, vectorstore_path)
+
+    user_input = st.text_input("질문을 입력하세요:")
+
+    if user_input:
+        # 질문 번역 (한국어 -> 영어)
+        translated_input = translate(user_input, src='ko', dest='en')
+        
+        # 검색
+        search_results = vectorstore.similarity_search(translated_input, k=5)
+        
+        # 결과 번역 (영어 -> 한국어)
+        translated_results = [translate(result.page_content, src='en', dest='ko') for result in search_results]
+        
+        # 결과 출력
+        for result in translated_results:
+            st.write(result)
+else:
+    st.error("PDF 파일을 data 폴더에 업로드해주세요.")
