@@ -41,10 +41,11 @@ def load_llm_model():
     return model
 
 # LLM을 사용한 답변 생성 함수
-def generate_answer(llm_model, query, context):
+def generate_answer(llm_model, query, context, max_length=100):
     input_text = f"질문: {query}\n\n맥락: {context}\n\n답변:"
-    answer = llm_model(input_text, max_new_tokens=100, do_sample=True, top_p=0.95, top_k=50)
-    return answer[0]['generated_text']
+    answer = llm_model(input_text, max_new_tokens=max_length, do_sample=True, top_p=0.95, top_k=50)
+    generated_text = answer[0]['generated_text']
+    return generated_text.split("답변:")[1].strip()
 
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
@@ -67,7 +68,7 @@ if os.path.exists(pdf_path):
         context = "\n".join([result.page_content for result in search_results])
         
         # LLM을 사용하여 답변 생성
-        answer = generate_answer(llm_model, user_input, context)
+        answer = generate_answer(llm_model, user_input, context, max_length=100)
         
         # 결과 출력
         st.write(answer)
