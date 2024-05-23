@@ -47,11 +47,11 @@ def truncate_text(text, max_length):
     return text[:max_length]
 
 # LLM을 사용한 답변 생성 함수
-def generate_answer(llm_model, tokenizer, query, context, max_length=100):
+def generate_answer(llm_model, tokenizer, query, context, max_length=100, max_input_length=512):
     input_text = f"질문: {query}\n\n맥락: {context}\n\n답변:"
-    input_text = truncate_text(input_text, 512)  # 입력 텍스트를 512자로 제한
+    input_text = truncate_text(input_text, max_input_length)  # 입력 텍스트를 제한
     input_ids = tokenizer.encode(input_text, return_tensors="pt")
-    output = llm_model.generate(input_ids, max_length=max_length, do_sample=True, top_p=0.95, top_k=50)
+    output = llm_model.generate(input_ids, max_new_tokens=max_length, do_sample=True, top_p=0.95, top_k=50)
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
     return generated_text.split("답변:")[1].strip() if "답변:" in generated_text else generated_text
 
@@ -77,7 +77,7 @@ if os.path.exists(pdf_path):
         context = truncate_text(context, 512)  # 맥락 텍스트를 512자로 제한
         
         # LLM을 사용하여 답변 생성
-        answer = generate_answer(llm_model, tokenizer, user_input, context, max_length=100)
+        answer = generate_answer(llm_model, tokenizer, user_input, context, max_length=100, max_input_length=512)
         
         # 결과 출력
         st.write(answer)
