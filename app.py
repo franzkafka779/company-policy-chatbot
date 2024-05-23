@@ -1,23 +1,40 @@
 import streamlit as st
-import pickle
-from sentence_transformers import SentenceTransformer
+import pdfplumber
 import faiss
+from sentence_transformers import SentenceTransformer
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
 from googletrans import Translator
-import gdown
 import os
 
-# 모델 파일이 존재하지 않는 경우 Google Drive에서 다운로드
-if not os.path.exists('data/model.pkl'):
-    url = 'https://drive.google.com/uc?id=YOUR_FILE_ID'  # Google Drive 파일 ID로 대체
-    gdown.download(url, 'data/model.pkl', quiet=False)
+# 텍스트 추출 함수
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text += page.extract_text()
+    return text
 
-# Load precomputed FAISS index, model, and texts
-with open('data/index.pkl', 'rb') as f:
-    index = pickle.load(f)
-with open('data/model.pkl', 'rb') as f:
-    model = pickle.load(f)
-with open('data/texts.pkl', 'rb') as f:
-    texts = pickle.load(f)
+# 텍스트 분할 함수
+def split_text(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=900,
+        chunk_overlap=100,
+        length_function=len
+    )
+    chunks = text_splitter.split_text(text)
+    return chunks
+
+# 벡터 DB 생성 함수
+def create_vectorstore(chunks):
+    embeddings = HuggingFaceEmbeddings(
+        model_name="jhgan/ko-sroberta-multitask",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
+    )
+    vectorstore = FAISS.from_texts(chunks, embeddings)
+    return vectorstore
 
 # 번역 함수 (Google Translate API 사용)
 translator = Translator()
@@ -25,26 +42,32 @@ translator = Translator()
 def translate(text, src='ko', dest='en'):
     return translator.translate(text, src=src, dest=dest).text
 
-def search_faiss_index(query, index, model, texts, top_k=5):
-    query_embedding = model.encode([query])
-    distances, indices = index.search(query_embedding, top_k)
-    return [texts[idx] for idx in indices[0]]
-
 # Streamlit UI 구현
 st.title("회사 내규 챗봇")
 
-user_input = st.text_input("질문을 입력하세요:")
+uploaded_file = st.file_uploader("PDF 파일을 업로드하세요", type="pdf")
 
-if user_input:
-    # 질문 번역 (한국어 -> 영어)
-    translated_input = translate(user_input, src='ko', dest='en')
-    
-    # 검색
-    results = search_faiss_index(translated_input, index, model, texts)
-    
-    # 결과 번역 (영어 -> 한국어)
-    translated_results = [translate(result, src='en', dest='ko') for result in results]
-    
-    # 결과 출력
-    for result in translated_results:
-        st.write(result)
+if uploaded_file:
+    with open(os.path.join("data", uploaded_file.name), "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    pdf_path = os.path.join("data", uploaded_file.name)
+    pdf_text = extract_text_from_pdf(pdf_path)
+    text_chunks = split_text(pdf_text)
+    vectorstore = create_vectorstore(text_chunks)
+
+    user_input = st.text_input("질문을 입력하세요:")
+
+    if user_input:
+        # 질문 번역 (한국어 -> 영어)
+        translated_input = translate(user_input, src='ko', dest='en')
+        
+        # 검색
+        search_results = vectorstore.similarity_search(translated_input, k=5)
+        
+        # 결과 번역 (영어 -> 한국어)
+        translated_results = [translate(result.text, src='en', dest='ko') for result in search_results]
+        
+        # 결과 출력
+        for result in translated_results:
+            st.write(result)
